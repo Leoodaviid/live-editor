@@ -1,31 +1,45 @@
-import { Editor } from "@/components/editor/Editor";
-import Header from "@/components/header";
-import { Button } from "@/components/ui/button";
-import React from "react";
-import {
-  ClerkProvider,
-  SignInButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from "@clerk/nextjs";
+import Image from "next/image";
+import Header from "@/components/Header";
+import { SignedIn, UserButton } from "@clerk/nextjs";
+import AddDocumentBtn from "@/components/AddDocumentBtn";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-const Home = () => {
+const Home = async () => {
+  const clerkUser = await currentUser();
+
+  if (!clerkUser) redirect("/sign-in");
+
+  const documents = [];
+
   return (
-    <div>
-      <Header>
-        <div className="flex w-fit items-center justify-center gap-2">
-          <p className="document-title">Share</p>
+    <main className="home-container">
+      <Header className="stick left-0 top-0">
+        <div className="flex items-center gap-2 lg:gap-4">
+          Notification
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
         </div>
-        <SignedOut>
-          <SignInButton />
-        </SignedOut>
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
       </Header>
-      <Editor />
-    </div>
+      {documents.length > 0 ? (
+        <div></div>
+      ) : (
+        <div className="document-list-empty">
+          <Image
+            src="/assets/icons/doc.svg"
+            alt="Document icon"
+            width={40}
+            height={40}
+            className="mx-auto"
+          />
+          <AddDocumentBtn
+            userId={clerkUser.id}
+            email={clerkUser.emailAddresses[0].emailAddress}
+          />
+        </div>
+      )}
+    </main>
   );
 };
 
