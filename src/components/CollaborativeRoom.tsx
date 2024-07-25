@@ -1,26 +1,28 @@
 "use client";
-import { SignedOut, SignInButton, SignedIn, UserButton } from "@clerk/nextjs";
+
 import { ClientSideSuspense, RoomProvider } from "@liveblocks/react/suspense";
-import { Editor } from "./editor/Editor";
-import Image from "next/image";
-import Header from "./Header";
+import { Editor } from "@/components/editor/Editor";
+import Header from "@/components/Header";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import ActiveCollaborators from "./ActiveCollaborators";
 import { useEffect, useRef, useState } from "react";
 import { Input } from "./ui/input";
+import Image from "next/image";
 import { updateDocument } from "@/lib/actions/room.actions";
 import Loader from "./Loader";
+import ShareModal from "./ShareModal";
+// import ShareModal from "./ShareModal";
 
 const CollaborativeRoom = ({
   roomId,
   roomMetadata,
+  users,
+  currentUserType,
 }: CollaborativeRoomProps) => {
-  const [documentTitle, setDocumentTitle] = useState<string>(
-    roomMetadata.title
-  );
-  const [editing, setEditing] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const currentUserType = "editor";
+  console.log("🚀 ~ currentUserType:", currentUserType);
+  const [documentTitle, setDocumentTitle] = useState(roomMetadata.title);
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +32,7 @@ const CollaborativeRoom = ({
   ) => {
     if (e.key === "Enter") {
       setLoading(true);
+
       try {
         if (documentTitle !== roomMetadata.title) {
           const updatedDocument = await updateDocument(roomId, documentTitle);
@@ -38,16 +41,16 @@ const CollaborativeRoom = ({
             setEditing(false);
           }
         }
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error(error);
       }
-      setEditing(false);
+
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const handlerClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
@@ -57,12 +60,12 @@ const CollaborativeRoom = ({
       }
     };
 
-    document.addEventListener("mousedown", handlerClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener("mousedown", handlerClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [documentTitle, roomId]);
+  }, [roomId, documentTitle]);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -71,7 +74,7 @@ const CollaborativeRoom = ({
   }, [editing]);
 
   return (
-    <RoomProvider id={roomId}>
+    <RoomProvider id={roomId} initialPresence={{ cursor: null }}>
       <ClientSideSuspense fallback={<Loader />}>
         <div className="collaborative-room">
           <Header>
@@ -87,7 +90,7 @@ const CollaborativeRoom = ({
                   placeholder="Enter title"
                   onChange={(e) => setDocumentTitle(e.target.value)}
                   onKeyDown={updateTitleHandler}
-                  disabled={!editing}
+                  // disable={false}
                   className="document-title-input"
                 />
               ) : (
@@ -95,23 +98,34 @@ const CollaborativeRoom = ({
                   <p className="document-title">{documentTitle}</p>
                 </>
               )}
+
               {currentUserType === "editor" && !editing && (
                 <Image
                   src="/assets/icons/edit.svg"
-                  alt="Edit"
+                  alt="edit"
                   width={24}
                   height={24}
                   onClick={() => setEditing(true)}
                   className="pointer"
                 />
               )}
+
               {currentUserType !== "editor" && !editing && (
-                <p className="view-only-tag">View Only</p>
+                <p className="view-only-tag">View only</p>
               )}
-              {loading && <p className="text-sm text-gray-400">Saving...</p>}
+
+              {loading && <p className="text-sm text-gray-400">saving...</p>}
             </div>
-            <div className="flex w-full flex-1 justify-end gap-2 sm:gap-3">
+            <div className="flex w-auto justify-end gap-2 sm:gap-3">
               <ActiveCollaborators />
+
+              <ShareModal
+                roomId={roomId}
+                collaborators={users}
+                creatorId={roomMetadata.creatorId}
+                currentUserType={currentUserType}
+              />
+
               <SignedOut>
                 <SignInButton />
               </SignedOut>
@@ -120,7 +134,7 @@ const CollaborativeRoom = ({
               </SignedIn>
             </div>
           </Header>
-          <Editor />
+          <Editor roomId={roomId} currentUserType={currentUserType} />
         </div>
       </ClientSideSuspense>
     </RoomProvider>
